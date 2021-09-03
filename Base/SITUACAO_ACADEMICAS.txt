@@ -1,0 +1,48 @@
+---
+title: "Situação Academica Discentes UFPE"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+pacman::p_load(dplyr, leaflet, leaflet.extras, leaflet.minicharts, plotly, rgdal, tidyr) # carregar os pacotes
+
+situacao_academica <- read.csv2('https://raw.githubusercontent.com/Leticia02/Relat-rio/master/SITUACAO_ACADEMICA.csv') # carregar a base de dados
+
+situacao_academica$CURSO <- as.factor(situacao_academica$CURSO) # conversão de dados
+
+situacao_academica_agg <- situacao_academica %>% group_by(CURSO, ID_DISCENTE, .drop=FALSE) %>% summarise(n = n()) %>% na.omit() %>% complete(ID_DISCENTE, CURSO, fill = list(n = 0)) %>% filter(CURSO != '') %>% distinct()
+
+situacao_academica_agg <- merge(situacao_academica_agg, situacao_academica, by = 'CURSO') %>% select(!ID_DISCENTE.y) %>% distinct()
+
+situacao_academica_ID_DISCENTE <- situacao_academica %>% group_by(ID_DISCENTE) %>% summarise(n = n()) %>% mutate(n_ant = lag(n, 10L))
+
+```
+
+## Faixa etária por curso UFPE
+
+### Série Histórica
+
+```{r sh, echo=FALSE, warning=FALSE, message=FALSE}
+
+plot_ly(situacao_academica_ID_DISCENTE, x = ~ID_DISCENTE) %>% add_trace(y = ~n_ant, name = 'década anterior', mode = 'lines+markers') %>% add_trace(y = ~n, name = 'ano', mode = 'lines+markers')
+
+```
+
+### Mapa Interativo
+
+```{r mi, echo=FALSE, warning=FALSE, message=FALSE}
+
+leaflet(situacao_academica_agg) %>% addTiles() %>%
+  addMinicharts(
+    situacao_academica_agg$CIDADE_NAT,
+    chartdata = situacao_academica_agg$n,
+    time = situacao_academica_agg$ANO_NASCIMENTO.x,
+    showLabels = F,
+    width = 15, height = 15
+  ) %>%
+  addFullscreenControl()
+
+```
+
+
